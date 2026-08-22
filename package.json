@@ -1,0 +1,7 @@
+{
+  "name": "biguyeo-day1-deploy",
+  "private": true,
+  "scripts": {
+    "dev": "node server.js"
+  }
+}
