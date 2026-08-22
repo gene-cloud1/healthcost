@@ -1,4 +1,4 @@
-(배포 후 이 줄에 Vercel URL 기입)
+https://healthcost-eight.vercel.app
 
 # 비급여진료비탐색서비스 — Day 1 배포 테스트
 
