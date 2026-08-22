@@ -1,5 +1,5 @@
 {
-  "name": "biguyeo-day1-deploy",
+  "name": "healthcost",
   "private": true,
   "scripts": {
     "dev": "node server.js"
