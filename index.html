@@ -12,6 +12,13 @@
 
 <ul id="list"></ul>
 
+<hr>
+
+<h2>진료 항목 검색</h2>
+<input id="search-input" type="text" placeholder="예: 독감주사">
+<button id="search-btn">검색</button>
+<p id="search-result"></p>
+
 <script>
 function render(items) {
   var list = document.getElementById('list')
@@ -40,6 +47,22 @@ document.getElementById('save-btn').addEventListener('click', function () {
     .then(function (data) {
       render(data.items)
       input.value = ''
+    })
+})
+
+document.getElementById('search-btn').addEventListener('click', function () {
+  var input = document.getElementById('search-input')
+  var query = input.value
+  var result = document.getElementById('search-result')
+  if (!query.trim()) return
+  fetch('/api/match?q=' + encodeURIComponent(query))
+    .then(function (res) { return res.json() })
+    .then(function (data) {
+      if (data.matched) {
+        result.textContent = '"' + query + '" → 공식 항목명: ' + data.official
+      } else {
+        result.textContent = '매칭되는 항목을 찾지 못했어요.'
+      }
     })
 })
 </script>
