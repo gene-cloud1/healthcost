@@ -66,9 +66,11 @@ async function callApi(pageNo, retriesLeft = 5) {
 }
 
 async function main() {
-  console.log('법정동코드 전체 조회 중 (시/도 · 시/군/구 레벨만 추림)...')
+  console.log('법정동코드 전체 조회 중 (시/도 · 시/군/구 · 읍/면/동 레벨 추림, 리는 제외)...')
   const sidoSet = new Set()
-  const sigunguMap = new Map() // sido -> Set(sigungu)
+  // sido -> sigungu -> Set(dong)
+  const sigunguMap = new Map()
+  const dongMap = new Map()
   let totalCount = Infinity
   let fetched = 0
 
@@ -84,6 +86,14 @@ async function main() {
         const [sido, sigungu] = tokens
         if (!sigunguMap.has(sido)) sigunguMap.set(sido, new Set())
         sigunguMap.get(sido).add(sigungu)
+      } else if (tokens.length === 3) {
+        const [sido, sigungu, dong] = tokens
+        const key = `${sido}|${sigungu}`
+        if (!dongMap.has(key)) dongMap.set(key, new Set())
+        dongMap.get(key).add(dong)
+        // 세종특별자치시처럼 시군구 레이어가 없는 경우, 읍/면/동 자체가
+        // "시군구 레벨"로 잡혀 있을 수 있으니 해당 항목도 확실히 등록해둔다.
+        if (!sigunguMap.has(sido)) sigunguMap.set(sido, new Set())
       }
     }
     console.log(`  ${page}페이지 확인 (${fetched}/${totalCount}건 누적)`)
@@ -94,9 +104,18 @@ async function main() {
   // 그냥 이름 가나다순으로 정렬한다 (코드 순서가 필요하면 region_cd를 같이 저장해야 함).
   const sidoNames = Array.from(sidoSet).sort((a, b) => a.localeCompare(b, 'ko'))
   const regionMap = {}
+  let sigunguCount = 0
+  let dongCount = 0
   for (const sido of sidoNames) {
     const sigunguSet = sigunguMap.get(sido) ?? new Set()
-    regionMap[sido] = Array.from(sigunguSet).sort((a, b) => a.localeCompare(b, 'ko'))
+    const sigunguNames = Array.from(sigunguSet).sort((a, b) => a.localeCompare(b, 'ko'))
+    regionMap[sido] = {}
+    for (const sigungu of sigunguNames) {
+      const dongSet = dongMap.get(`${sido}|${sigungu}`) ?? new Set()
+      regionMap[sido][sigungu] = Array.from(dongSet).sort((a, b) => a.localeCompare(b, 'ko'))
+      sigunguCount += 1
+      dongCount += regionMap[sido][sigungu].length
+    }
   }
 
   if (sidoNames.length === 0) {
@@ -105,9 +124,9 @@ async function main() {
   }
 
   const outPath = path.join(ROOT, 'data', 'regions.ts')
-  const fileContent = `// scripts/fetch-region-codes.mjs가 생성한다. 직접 수정하지 말고 스크립트를 다시 실행할 것.\n// 행정안전부 법정동코드(StanReginCd) 기준 시/도 -> 시/군/구 목록.\nexport const regionMap: Record<string, string[]> = ${JSON.stringify(regionMap, null, 2)}\n`
+  const fileContent = `// scripts/fetch-region-codes.mjs가 생성한다. 직접 수정하지 말고 스크립트를 다시 실행할 것.\n// 행정안전부 법정동코드(StanReginCd) 기준 시/도 -> 시/군/구 -> 읍/면/동 목록.\nexport const regionMap: Record<string, Record<string, string[]>> = ${JSON.stringify(regionMap, null, 2)}\n`
   fs.writeFileSync(outPath, fileContent, 'utf-8')
-  console.log(`완료: 시/도 ${sidoNames.length}개, 시/군/구 총 ${Object.values(regionMap).reduce((s, a) => s + a.length, 0)}개 저장 → ${outPath}`)
+  console.log(`완료: 시/도 ${sidoNames.length}개, 시/군/구 총 ${sigunguCount}개, 읍/면/동 총 ${dongCount}개 저장 → ${outPath}`)
 }
 
 main().catch((err) => {

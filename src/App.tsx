@@ -118,7 +118,14 @@ export default function App() {
 
   const selectCity = (nextCity: string) => {
     setCity(nextCity)
-    setDistrict(regionMap[nextCity]?.[0] ?? '')
+    const firstDistrict = Object.keys(regionMap[nextCity] ?? {})[0] ?? ''
+    setDistrict(firstDistrict)
+    setNeighborhood(regionMap[nextCity]?.[firstDistrict]?.[0] ?? '')
+  }
+
+  const selectDistrict = (nextDistrict: string) => {
+    setDistrict(nextDistrict)
+    setNeighborhood(regionMap[city]?.[nextDistrict]?.[0] ?? '')
   }
 
   const requestLocation = (onGranted?: () => void) => {
@@ -226,8 +233,8 @@ export default function App() {
               </label>
               <label className="district-select">
                 시·군·구
-                <select value={district} onChange={(e) => setDistrict(e.target.value)}>
-                  {(regionMap[city] ?? []).map((name) => (
+                <select value={district} onChange={(e) => selectDistrict(e.target.value)}>
+                  {Object.keys(regionMap[city] ?? {}).map((name) => (
                     <option key={name}>{name}</option>
                   ))}
                 </select>
@@ -235,10 +242,9 @@ export default function App() {
               <label className="district-select">
                 동
                 <select value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)}>
-                  <option>역삼동</option>
-                  <option>논현동</option>
-                  <option>삼성동</option>
-                  <option>대치동</option>
+                  {(regionMap[city]?.[district] ?? []).map((name) => (
+                    <option key={name}>{name}</option>
+                  ))}
                 </select>
               </label>
             </div>
