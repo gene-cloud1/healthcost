@@ -28,7 +28,9 @@ if (!API_KEY) {
 
 const HOSP_URL = 'https://apis.data.go.kr/B551182/hospInfoServicev2/getHospBasisList'
 const NONPAY_URL = 'https://apis.data.go.kr/B551182/nonPaymentDamtInfoService/getNonPaymentItemHospDtlList'
-const TARGET_DISTRICT = '강남구'
+// CLI 인자로 구를 넘기면 그 구들만, 안 넘기면 강남구만 (기존 동작 유지).
+// 예: node scripts/fetch-hira-data.mjs 서초구 송파구
+const TARGET_DISTRICTS = process.argv.slice(2).length > 0 ? process.argv.slice(2) : ['강남구']
 const MAX_HOSPITALS = 8
 const MAX_PAGES = 30
 const PAGE_SIZE = 1000
@@ -68,7 +70,7 @@ async function callApi(baseUrl, extraParams, retriesLeft = 5) {
   return Array.isArray(items) ? items : [items]
 }
 
-async function findGangnamHospitals() {
+async function findHospitalsInDistrict(district) {
   const found = []
   for (let page = 1; page <= MAX_PAGES && found.length < MAX_HOSPITALS; page += 1) {
     const items = await callApi(HOSP_URL, { numOfRows: PAGE_SIZE, pageNo: page })
@@ -77,12 +79,12 @@ async function findGangnamHospitals() {
     }
     if (items.length === 0) break
     for (const item of items) {
-      if (typeof item.addr === 'string' && item.addr.includes(TARGET_DISTRICT)) {
+      if (typeof item.addr === 'string' && item.addr.includes(district)) {
         found.push(item)
         if (found.length >= MAX_HOSPITALS) break
       }
     }
-    console.log(`  ${page}페이지 확인, 누적 ${TARGET_DISTRICT} 매칭 ${found.length}건`)
+    console.log(`  ${page}페이지 확인, 누적 ${district} 매칭 ${found.length}건`)
   }
   return found
 }
@@ -109,16 +111,34 @@ function mapKind(clCdNm) {
   return '의원'
 }
 
-async function main() {
-  console.log(`1) ${TARGET_DISTRICT} 소재 병원 목록 조회 중...`)
-  const hospitals = await findGangnamHospitals()
+// 기존 data/nonbenefit-prices.ts에서 providers 배열만 뽑아온다.
+// `export const providers: NonBenefitProvider[] = [ ... ]` 형태라
+// '=' 뒤부터 끝까지가 유효한 JSON 배열이라는 점을 이용한다.
+function loadExistingProviders() {
+  const outPath = path.join(ROOT, 'data', 'nonbenefit-prices.ts')
+  if (!fs.existsSync(outPath)) return []
+  const content = fs.readFileSync(outPath, 'utf-8')
+  const eq = content.indexOf('providers: NonBenefitProvider[] = ')
+  if (eq === -1) return []
+  const jsonPart = content.slice(eq + 'providers: NonBenefitProvider[] = '.length).trim()
+  try {
+    return JSON.parse(jsonPart)
+  } catch {
+    console.log('  기존 data/nonbenefit-prices.ts 파싱 실패, 빈 배열로 취급')
+    return []
+  }
+}
+
+async function fetchDistrict(district) {
+  console.log(`\n[${district}] 소재 병원 목록 조회 중...`)
+  const hospitals = await findHospitalsInDistrict(district)
   console.log(`   ${hospitals.length}개 병원 확보`)
   if (hospitals.length === 0) {
-    console.error('강남구 병원을 하나도 못 찾았어요. data/_debug-hosp-page1.json 을 열어 addr 필드명이 맞는지 확인하세요.')
-    process.exit(1)
+    console.log(`   [${district}] 병원을 하나도 못 찾았어요, 건너뜀`)
+    return []
   }
 
-  console.log('2) 병원별 신고 비급여 항목 전체 조회 중...')
+  console.log(`[${district}] 병원별 신고 비급여 항목 전체 조회 중...`)
   const providers = []
   let first = true
   for (const hosp of hospitals) {
@@ -142,7 +162,7 @@ async function main() {
         name: hosp.yadmNm,
         kind: mapKind(hosp.clCdNm),
         item: nonpay.npayKorNm,
-        district: TARGET_DISTRICT,
+        district,
         address: hosp.addr,
         lat: Number(hosp.YPos),
         lng: Number(hosp.XPos),
@@ -153,19 +173,32 @@ async function main() {
     }
     console.log(`   - ${hosp.yadmNm}: 항목 ${nonpayItems.length}건 확보`)
   }
+  return providers
+}
 
-  if (providers.length === 0) {
-    console.error('조회된 가격 데이터가 없어요. data/_debug-nonpay-sample.json 을 열어 npayKorNm/curAmt 필드명이 맞는지 확인하세요.')
+async function main() {
+  console.log(`대상 시/군/구: ${TARGET_DISTRICTS.join(', ')}`)
+  const existing = loadExistingProviders()
+  // 이번에 다시 수집하는 구는 기존 것을 버리고 새로 넣는다 (중복 방지).
+  const kept = existing.filter((p) => !TARGET_DISTRICTS.includes(p.district))
+  console.log(`기존 데이터 ${existing.length}건 중 ${kept.length}건 유지 (${existing.length - kept.length}건은 이번에 새로 갱신)`)
+
+  const newProviders = []
+  for (const district of TARGET_DISTRICTS) {
+    const result = await fetchDistrict(district)
+    newProviders.push(...result)
+  }
+
+  const allProviders = [...kept, ...newProviders]
+  if (allProviders.length === 0) {
+    console.error('저장할 데이터가 하나도 없어요.')
     process.exit(1)
   }
 
-  // JSON이 아니라 .ts 모듈로 저장한다: Vercel 서버리스 함수가 런타임에 파일시스템에서
-  // 읽으면 파일 번들링 누락(FUNCTION_INVOCATION_FAILED) 위험이 있어서, import로 직접
-  // 코드에 박아 넣는 방식이 안전하다.
   const outPath = path.join(ROOT, 'data', 'nonbenefit-prices.ts')
-  const fileContent = `import type { NonBenefitProvider } from '../lib/types.js'\n\n// scripts/fetch-hira-data.mjs가 생성한다. 직접 수정하지 말고 스크립트를 다시 실행할 것.\nexport const providers: NonBenefitProvider[] = ${JSON.stringify(providers, null, 2)}\n`
+  const fileContent = `import type { NonBenefitProvider } from '../lib/types.js'\n\n// scripts/fetch-hira-data.mjs가 생성한다. 직접 수정하지 말고 스크립트를 다시 실행할 것.\nexport const providers: NonBenefitProvider[] = ${JSON.stringify(allProviders, null, 2)}\n`
   fs.writeFileSync(outPath, fileContent, 'utf-8')
-  console.log(`3) 완료: ${providers.length}건 저장 → ${outPath}`)
+  console.log(`\n완료: 이번에 ${newProviders.length}건 추가/갱신, 총 ${allProviders.length}건 저장 → ${outPath}`)
 }
 
 main().catch((err) => {
