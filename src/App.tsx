@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import './index.css'
 import type { SearchResult } from '../lib/types'
+import { regionMap } from '../data/regions'
 
 type Sort = 'price' | 'distance'
+
+const SIDO_NAMES = Object.keys(regionMap)
 
 // 실제 심평원 데이터의 공식 항목명은 "인플루엔자 예방접종료"처럼 구어체와 겹치는 글자가
 // 거의 없는 경우가 많아서, 자주 쓰는 구어체 몇 개만 힌트로 매핑해둔다. 나머지는 실제
@@ -113,6 +116,11 @@ export default function App() {
     setNotice(`"${official}" 항목으로 비교 결과를 보여드려요.`)
   }
 
+  const selectCity = (nextCity: string) => {
+    setCity(nextCity)
+    setDistrict(regionMap[nextCity]?.[0] ?? '')
+  }
+
   const requestLocation = (onGranted?: () => void) => {
     if (!navigator.geolocation) {
       setLocationStatus('위치 기능을 지원하지 않는 환경')
@@ -210,18 +218,18 @@ export default function App() {
             <div className="region-selects" aria-label="지역 선택">
               <label className="district-select">
                 시·도
-                <select value={city} onChange={(e) => setCity(e.target.value)}>
-                  <option>서울특별시</option>
-                  <option>경기도</option>
-                  <option>인천광역시</option>
+                <select value={city} onChange={(e) => selectCity(e.target.value)}>
+                  {SIDO_NAMES.map((name) => (
+                    <option key={name}>{name}</option>
+                  ))}
                 </select>
               </label>
               <label className="district-select">
                 시·군·구
                 <select value={district} onChange={(e) => setDistrict(e.target.value)}>
-                  <option>강남구</option>
-                  <option>서초구</option>
-                  <option>송파구</option>
+                  {(regionMap[city] ?? []).map((name) => (
+                    <option key={name}>{name}</option>
+                  ))}
                 </select>
               </label>
               <label className="district-select">
