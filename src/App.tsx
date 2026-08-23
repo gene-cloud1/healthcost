@@ -113,7 +113,7 @@ export default function App() {
     setNotice(`"${official}" 항목으로 비교 결과를 보여드려요.`)
   }
 
-  const requestLocation = () => {
+  const requestLocation = (onGranted?: () => void) => {
     if (!navigator.geolocation) {
       setLocationStatus('위치 기능을 지원하지 않는 환경')
       return
@@ -122,12 +122,22 @@ export default function App() {
       (position) => {
         setCoords({ lat: position.coords.latitude, lng: position.coords.longitude })
         setLocationStatus('현재 위치를 반영했어요')
+        onGranted?.()
       },
       () => {
         setCoords(null)
         setLocationStatus('위치 권한이 없어 선택한 지역 기준으로 표시 중')
       },
     )
+  }
+
+  const useDistanceSort = () => {
+    if (coords) {
+      setSort('distance')
+      return
+    }
+    setLocationStatus('위치를 확인하는 중...')
+    requestLocation(() => setSort('distance'))
   }
 
   const lowestPrice = results.length ? Math.min(...results.map((r) => r.priceMin)) : null
@@ -195,7 +205,7 @@ export default function App() {
           <section className="location-card" aria-label="위치 및 지역 설정">
             <div className="location-heading">
               <p className="section-label">검색 지역</p>
-              <button className="outline-button" onClick={requestLocation}>내 위치 사용</button>
+              <button className="outline-button" onClick={() => requestLocation()}>내 위치 사용</button>
             </div>
             <div className="region-selects" aria-label="지역 선택">
               <label className="district-select">
@@ -242,7 +252,11 @@ export default function App() {
             </div>
             <div className="sort-tabs" role="group" aria-label="정렬 기준">
               <button className={sort === 'price' ? 'active' : ''} onClick={() => setSort('price')}>낮은 가격순</button>
-              <button className={sort === 'distance' ? 'active' : ''} disabled={!coords} onClick={() => setSort('distance')}>
+              <button
+                className={sort === 'distance' ? 'active' : ''}
+                title={coords ? undefined : '누르면 위치 권한을 요청해요'}
+                onClick={useDistanceSort}
+              >
                 가까운 거리순
               </button>
             </div>
