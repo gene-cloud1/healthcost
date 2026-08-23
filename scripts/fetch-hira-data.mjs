@@ -144,8 +144,12 @@ async function main() {
     process.exit(1)
   }
 
-  const outPath = path.join(ROOT, 'data', 'nonbenefit-prices.json')
-  fs.writeFileSync(outPath, JSON.stringify(providers, null, 2), 'utf-8')
+  // JSON이 아니라 .ts 모듈로 저장한다: Vercel 서버리스 함수가 런타임에 파일시스템에서
+  // 읽으면 파일 번들링 누락(FUNCTION_INVOCATION_FAILED) 위험이 있어서, import로 직접
+  // 코드에 박아 넣는 방식이 안전하다.
+  const outPath = path.join(ROOT, 'data', 'nonbenefit-prices.ts')
+  const fileContent = `import type { NonBenefitProvider } from '../lib/types'\n\n// scripts/fetch-hira-data.mjs가 생성한다. 직접 수정하지 말고 스크립트를 다시 실행할 것.\nexport const providers: NonBenefitProvider[] = ${JSON.stringify(providers, null, 2)}\n`
+  fs.writeFileSync(outPath, fileContent, 'utf-8')
   console.log(`3) 완료: ${providers.length}건 저장 → ${outPath}`)
 }
 
