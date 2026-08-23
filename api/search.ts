@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { providers } from '../data/nonbenefit-prices'
-import { searchProviders } from '../lib/search'
+import { providers } from '../data/nonbenefit-prices.js'
+import { searchProviders } from '../lib/search.js'
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   const district = typeof req.query.district === 'string' ? req.query.district : undefined

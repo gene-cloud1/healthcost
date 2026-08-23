@@ -1,5 +1,5 @@
-import { haversineKm } from './geo'
-import type { NonBenefitProvider, SearchResult } from './types'
+import { haversineKm } from './geo.js'
+import type { NonBenefitProvider, SearchResult } from './types.js'
 
 export type SearchParams = {
   district?: string

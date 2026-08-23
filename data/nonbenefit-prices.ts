@@ -1,4 +1,4 @@
-import type { NonBenefitProvider } from '../lib/types'
+import type { NonBenefitProvider } from '../lib/types.js'
 
 // scripts/fetch-hira-data.mjs가 생성한다. JSON 파일 대신 TS 모듈로 두는 이유:
 // Vercel 서버리스 함수가 런타임에 파일시스템에서 데이터를 읽으면 파일 번들링
