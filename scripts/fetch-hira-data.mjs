@@ -56,20 +56,31 @@ async function callApi(baseUrl, extraParams, retriesLeft = 5) {
   }
   const res = await fetch(url)
   const text = await res.text()
-  if (!res.ok || text.includes('SERVICETIMEOUT_ERROR')) {
+
+  // HIRA 서버가 리소스풀 고갈 등으로 죽으면 HTTP 200에 resultCode!=00으로 응답한다
+  // (예: resultCode:99 "ResourceLimitException"). SERVICETIMEOUT_ERROR 문자열 검사만으로는
+  // 이런 케이스를 못 잡아서 "0건"으로 조용히 넘어가는 버그가 있었다 — resultCode도 같이 본다.
+  let json = null
+  let resultCode = null
+  try {
+    json = JSON.parse(text)
+    resultCode = json?.response?.header?.resultCode ?? json?.OpenAPI_ServiceResponse?.cmmMsgHeader?.returnReasonCode ?? null
+  } catch {
+    // 파싱 실패는 아래 isError 처리로 넘어간다 (json이 null로 남음)
+  }
+  const isSuccess = resultCode === '00' || resultCode === 0 || resultCode === '0'
+  const isError = !res.ok || text.includes('SERVICETIMEOUT_ERROR') || json === null || !isSuccess
+
+  if (isError) {
     if (retriesLeft > 0) {
-      console.log(`  (일시 오류, ${retriesLeft}회 재시도 남음 — 3초 후 재시도)`)
+      const reason = resultCode !== null ? `resultCode=${resultCode}` : `HTTP ${res.status}`
+      console.log(`  (일시 오류(${reason}), ${retriesLeft}회 재시도 남음 — 3초 후 재시도)`)
       await sleep(3000)
       return callApi(baseUrl, extraParams, retriesLeft - 1)
     }
-    throw new Error(`${baseUrl} 호출 실패: ${res.status} ${text}`)
+    throw new Error(`${baseUrl} 호출 실패: ${res.status} ${text.slice(0, 500)}`)
   }
-  let json
-  try {
-    json = JSON.parse(text)
-  } catch {
-    throw new Error(`JSON 파싱 실패 — 응답이 XML/에러 메시지일 수 있어요. 원문:\n${text.slice(0, 1000)}`)
-  }
+
   const items = json?.response?.body?.items?.item
   if (!items) return []
   return Array.isArray(items) ? items : [items]
@@ -181,29 +192,45 @@ async function fetchDistrict(district) {
   return providers
 }
 
+function saveProviders(providers) {
+  const outPath = path.join(ROOT, 'data', 'nonbenefit-prices.ts')
+  const fileContent = `import type { NonBenefitProvider } from '../lib/types.js'\n\n// scripts/fetch-hira-data.mjs가 생성한다. 직접 수정하지 말고 스크립트를 다시 실행할 것.\nexport const providers: NonBenefitProvider[] = ${JSON.stringify(providers, null, 2)}\n`
+  fs.writeFileSync(outPath, fileContent, 'utf-8')
+}
+
 async function main() {
   console.log(`대상 시/군/구: ${TARGET_DISTRICTS.join(', ')}`)
-  const existing = loadExistingProviders()
-  // 이번에 다시 수집하는 구는 기존 것을 버리고 새로 넣는다 (중복 방지).
-  const kept = existing.filter((p) => !TARGET_DISTRICTS.includes(p.district))
-  console.log(`기존 데이터 ${existing.length}건 중 ${kept.length}건 유지 (${existing.length - kept.length}건은 이번에 새로 갱신)`)
+  let all = loadExistingProviders()
+  console.log(`기존 데이터 ${all.length}건에서 시작`)
 
-  const newProviders = []
   for (const district of TARGET_DISTRICTS) {
-    const result = await fetchDistrict(district)
-    newProviders.push(...result)
+    let result
+    try {
+      result = await fetchDistrict(district)
+    } catch (err) {
+      console.log(`\n[${district}] 반복된 오류로 이번 구는 건너뜀, 기존 데이터 유지 (${err.message.slice(0, 120)})`)
+      continue
+    }
+    if (result.length === 0) {
+      // 병원을 하나도 못 찾은 건 API 오류(리소스풀 고갈 등)일 가능성이 높다.
+      // 진짜로 0건이어도, 있던 데이터를 빈 걸로 덮어쓰는 것보다 기존 걸 보존하는 쪽이 안전하다.
+      console.log(`   [${district}] 새로 받은 데이터가 0건이라 기존 데이터를 그대로 둔다 (덮어쓰지 않음)`)
+      continue
+    }
+    // 이 구는 새 데이터를 확보했으니, 기존 것 중 이 구 것만 새 걸로 교체하고 즉시 저장한다
+    // (한 구 끝날 때마다 파일에 반영해서, 중간에 죽어도 여기까지는 안전하게 남는다).
+    all = [...all.filter((p) => p.district !== district), ...result]
+    saveProviders(all)
+    console.log(`   [${district}] ${result.length}건으로 갱신, 저장 완료 (누적 ${all.length}건)`)
   }
 
-  const allProviders = [...kept, ...newProviders]
-  if (allProviders.length === 0) {
+  if (all.length === 0) {
     console.error('저장할 데이터가 하나도 없어요.')
     process.exit(1)
   }
 
-  const outPath = path.join(ROOT, 'data', 'nonbenefit-prices.ts')
-  const fileContent = `import type { NonBenefitProvider } from '../lib/types.js'\n\n// scripts/fetch-hira-data.mjs가 생성한다. 직접 수정하지 말고 스크립트를 다시 실행할 것.\nexport const providers: NonBenefitProvider[] = ${JSON.stringify(allProviders, null, 2)}\n`
-  fs.writeFileSync(outPath, fileContent, 'utf-8')
-  console.log(`\n완료: 이번에 ${newProviders.length}건 추가/갱신, 총 ${allProviders.length}건 저장 → ${outPath}`)
+  saveProviders(all)
+  console.log(`\n완료: 총 ${all.length}건 저장 → data/nonbenefit-prices.ts`)
 }
 
 main().catch((err) => {
