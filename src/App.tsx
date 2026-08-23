@@ -4,17 +4,39 @@ import type { SearchResult } from '../lib/types'
 
 type Sort = 'price' | 'distance'
 
-const items = [
-  { official: '인플루엔자 예방접종료', aliases: ['독감주사', '독감 예방접종', '독감백신'] },
-  { official: '알레르기 검사료', aliases: ['알러지검사', '알레르기 검사', '알러지'] },
-  { official: '도수치료', aliases: ['도수치료', '물리치료'] },
-]
+// 실제 심평원 데이터의 공식 항목명은 "인플루엔자 예방접종료"처럼 구어체와 겹치는 글자가
+// 거의 없는 경우가 많아서, 자주 쓰는 구어체 몇 개만 힌트로 매핑해둔다. 나머지는 실제
+// 항목명과의 직접 부분일치로 매칭된다 (§6 로드맵의 임베딩 기반 의미 검색 전까지의 임시 대체).
+const ALIAS_HINTS: Record<string, string[]> = {
+  독감주사: ['인플루엔자'],
+  '독감 예방접종': ['인플루엔자'],
+  독감백신: ['인플루엔자'],
+  알러지검사: ['알레르기'],
+  '알레르기 검사': ['알레르기'],
+  알러지: ['알레르기'],
+}
+
+const normalize = (s: string) => s.replaceAll(' ', '').toLowerCase()
+
+function matchItems(query: string, options: string[]): string[] {
+  const trimmed = query.trim()
+  if (!trimmed) return []
+  const normalizedQuery = normalize(trimmed)
+  const hints = ALIAS_HINTS[trimmed]?.map(normalize) ?? []
+  return options.filter((option) => {
+    const normalizedOption = normalize(option)
+    if (normalizedOption.includes(normalizedQuery) || normalizedQuery.includes(normalizedOption)) return true
+    return hints.some((hint) => normalizedOption.includes(hint))
+  })
+}
 
 const formatPrice = (price: number) => (price === 0 ? '무료' : `${price.toLocaleString()}원`)
 
 export default function App() {
   const [query, setQuery] = useState('독감주사')
-  const [selected, setSelected] = useState(items[0])
+  const [itemOptions, setItemOptions] = useState<string[]>([])
+  const [selectedItem, setSelectedItem] = useState<string | null>(null)
+  const [candidates, setCandidates] = useState<string[]>([])
   const [city, setCity] = useState('서울특별시')
   const [district, setDistrict] = useState('강남구')
   const [neighborhood, setNeighborhood] = useState('역삼동')
@@ -25,21 +47,26 @@ export default function App() {
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
 
-  const matchedItems = useMemo(() => {
-    const normalized = query.replaceAll(' ', '').toLowerCase()
-    return items.filter((item) =>
-      [item.official, ...item.aliases].some(
-        (word) =>
-          word.replaceAll(' ', '').toLowerCase().includes(normalized) ||
-          normalized.includes(word.replaceAll(' ', '').toLowerCase()),
-      ),
-    )
-  }, [query])
+  const queryMatches = useMemo(() => matchItems(query, itemOptions), [query, itemOptions])
 
   useEffect(() => {
+    fetch('/api/items')
+      .then((res) => res.json())
+      .then((data) => setItemOptions(data.items ?? []))
+      .catch(() => setNotice('검색 가능한 항목 목록을 불러오지 못했어요.'))
+  }, [])
+
+  useEffect(() => {
+    if (selectedItem || itemOptions.length === 0) return
+    const initialMatches = matchItems(query, itemOptions)
+    setSelectedItem(initialMatches[0] ?? itemOptions[0])
+  }, [itemOptions, query, selectedItem])
+
+  useEffect(() => {
+    if (!selectedItem) return
     let cancelled = false
     setLoading(true)
-    const params = new URLSearchParams({ item: selected.official, district, sort })
+    const params = new URLSearchParams({ item: selectedItem, district, sort })
     if (coords) {
       params.set('lat', String(coords.lat))
       params.set('lng', String(coords.lng))
@@ -59,19 +86,31 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [selected, district, sort, coords])
+  }, [selectedItem, district, sort, coords])
 
   const search = () => {
     if (!query.trim()) {
       setNotice('찾고 싶은 진료 항목을 입력해 주세요.')
+      setCandidates([])
       return
     }
-    if (matchedItems.length) {
-      setSelected(matchedItems[0])
-      setNotice(`"${matchedItems[0].official}" 항목으로 비교 결과를 보여드려요.`)
+    if (queryMatches.length === 1) {
+      setSelectedItem(queryMatches[0])
+      setCandidates([])
+      setNotice(`"${queryMatches[0]}" 항목으로 비교 결과를 보여드려요.`)
+    } else if (queryMatches.length > 1) {
+      setCandidates(queryMatches.slice(0, 8))
+      setNotice('여러 항목이 검색됐어요. 아래에서 원하는 항목을 선택해 주세요.')
     } else {
-      setNotice('정확한 항목을 찾지 못했어요. 아래 추천 항목에서 선택해 주세요.')
+      setCandidates([])
+      setNotice('정확한 항목을 찾지 못했어요. 표현을 바꾸거나 다른 검색어로 시도해 보세요.')
     }
+  }
+
+  const pickCandidate = (official: string) => {
+    setSelectedItem(official)
+    setCandidates([])
+    setNotice(`"${official}" 항목으로 비교 결과를 보여드려요.`)
   }
 
   const requestLocation = () => {
@@ -140,9 +179,18 @@ export default function App() {
               <div className="match-icon" aria-hidden="true">✓</div>
               <div>
                 <small>가장 가까운 공식 항목</small>
-                <strong>{selected.official}</strong>
+                <strong>{selectedItem ?? '검색 중...'}</strong>
               </div>
             </div>
+            {candidates.length > 0 && (
+              <div className="candidate-list" aria-label="검색된 항목 후보">
+                {candidates.map((candidate) => (
+                  <button key={candidate} className="outline-button" onClick={() => pickCandidate(candidate)}>
+                    {candidate}
+                  </button>
+                ))}
+              </div>
+            )}
           </section>
           <section className="location-card" aria-label="위치 및 지역 설정">
             <div className="location-heading">
@@ -190,7 +238,7 @@ export default function App() {
           <div className="results-topline">
             <div>
               <p className="section-label">{district} 기준</p>
-              <h2>{selected.official} <span>비교 결과</span></h2>
+              <h2>{selectedItem ?? '항목 미선택'} <span>비교 결과</span></h2>
             </div>
             <div className="sort-tabs" role="group" aria-label="정렬 기준">
               <button className={sort === 'price' ? 'active' : ''} onClick={() => setSort('price')}>낮은 가격순</button>
@@ -206,11 +254,11 @@ export default function App() {
           </div>
           <div className="result-list">
             {loading && <p>불러오는 중...</p>}
-            {!loading && results.length === 0 && (
-              <p className="notice">아직 "{selected.official}" · {district} 조합의 실제 데이터가 없어요. "독감주사" · 강남구로 검색해 보세요.</p>
+            {!loading && selectedItem && results.length === 0 && (
+              <p className="notice">아직 "{selectedItem}" · {district} 조합의 실제 데이터가 없어요. "독감주사" · 강남구로 검색해 보세요.</p>
             )}
             {results.map((provider, index) => (
-              <article className={`provider-card ${provider.kind === '보건소' ? 'public' : ''}`} key={provider.ykiho}>
+              <article className={`provider-card ${provider.kind === '보건소' ? 'public' : ''}`} key={`${provider.ykiho}-${provider.item}`}>
                 <div className="rank">{index + 1}</div>
                 <div className="provider-main">
                   <div className="provider-title">

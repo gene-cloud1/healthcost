@@ -29,7 +29,6 @@ if (!API_KEY) {
 const HOSP_URL = 'https://apis.data.go.kr/B551182/hospInfoServicev2/getHospBasisList'
 const NONPAY_URL = 'https://apis.data.go.kr/B551182/nonPaymentDamtInfoService/getNonPaymentItemHospDtlList'
 const TARGET_DISTRICT = '강남구'
-const TARGET_ITEM_KEYWORDS = ['인플루엔자', '독감']
 const MAX_HOSPITALS = 8
 const MAX_PAGES = 30
 const PAGE_SIZE = 1000
@@ -37,7 +36,11 @@ const PAGE_SIZE = 1000
 const debugDir = path.join(ROOT, 'data')
 fs.mkdirSync(debugDir, { recursive: true })
 
-async function callApi(baseUrl, extraParams) {
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function callApi(baseUrl, extraParams, retriesLeft = 5) {
   const url = new URL(baseUrl)
   url.searchParams.set('serviceKey', API_KEY)
   url.searchParams.set('_type', 'json')
@@ -46,7 +49,12 @@ async function callApi(baseUrl, extraParams) {
   }
   const res = await fetch(url)
   const text = await res.text()
-  if (!res.ok) {
+  if (!res.ok || text.includes('SERVICETIMEOUT_ERROR')) {
+    if (retriesLeft > 0) {
+      console.log(`  (일시 오류, ${retriesLeft}회 재시도 남음 — 3초 후 재시도)`)
+      await sleep(3000)
+      return callApi(baseUrl, extraParams, retriesLeft - 1)
+    }
     throw new Error(`${baseUrl} 호출 실패: ${res.status} ${text}`)
   }
   let json
@@ -79,16 +87,12 @@ async function findGangnamHospitals() {
   return found
 }
 
-async function findNonPaymentItem(ykiho, isFirst) {
+async function findNonPaymentItems(ykiho, isFirst) {
   const items = await callApi(NONPAY_URL, { ykiho, numOfRows: 100, pageNo: 1 })
   if (isFirst) {
     fs.writeFileSync(path.join(debugDir, '_debug-nonpay-sample.json'), JSON.stringify(items, null, 2))
   }
-  return items.find(
-    (item) =>
-      typeof item.npayKorNm === 'string' &&
-      TARGET_ITEM_KEYWORDS.some((keyword) => item.npayKorNm.includes(keyword)),
-  )
+  return items.filter((item) => typeof item.npayKorNm === 'string' && item.npayKorNm.trim())
 }
 
 function formatDate(raw) {
@@ -114,30 +118,40 @@ async function main() {
     process.exit(1)
   }
 
-  console.log('2) 병원별 인플루엔자 예방접종료 비급여 가격 조회 중...')
+  console.log('2) 병원별 신고 비급여 항목 전체 조회 중...')
   const providers = []
   let first = true
   for (const hosp of hospitals) {
-    const nonpay = await findNonPaymentItem(hosp.ykiho, first)
-    first = false
-    if (!nonpay) {
-      console.log(`   - ${hosp.yadmNm}: 해당 항목 가격 정보 없음, 건너뜀`)
+    if (!first) await sleep(1000)
+    let nonpayItems
+    try {
+      nonpayItems = await findNonPaymentItems(hosp.ykiho, first)
+    } catch (err) {
+      console.log(`   - ${hosp.yadmNm}: 반복된 오류로 건너뜀 (${err.message.slice(0, 80)})`)
+      first = false
       continue
     }
-    providers.push({
-      ykiho: hosp.ykiho,
-      name: hosp.yadmNm,
-      kind: mapKind(hosp.clCdNm),
-      item: nonpay.npayKorNm,
-      district: TARGET_DISTRICT,
-      address: hosp.addr,
-      lat: Number(hosp.YPos),
-      lng: Number(hosp.XPos),
-      priceMin: Number(nonpay.curAmt ?? nonpay.minAmt ?? 0),
-      priceMax: Number(nonpay.curAmt ?? nonpay.maxAmt ?? nonpay.minAmt ?? 0),
-      updated: formatDate(nonpay.adtFrDd),
-    })
-    console.log(`   - ${hosp.yadmNm}: ${nonpay.curAmt ?? nonpay.minAmt}원 확보`)
+    first = false
+    if (nonpayItems.length === 0) {
+      console.log(`   - ${hosp.yadmNm}: 신고된 비급여 항목 없음, 건너뜀`)
+      continue
+    }
+    for (const nonpay of nonpayItems) {
+      providers.push({
+        ykiho: hosp.ykiho,
+        name: hosp.yadmNm,
+        kind: mapKind(hosp.clCdNm),
+        item: nonpay.npayKorNm,
+        district: TARGET_DISTRICT,
+        address: hosp.addr,
+        lat: Number(hosp.YPos),
+        lng: Number(hosp.XPos),
+        priceMin: Number(nonpay.curAmt ?? nonpay.minAmt ?? 0),
+        priceMax: Number(nonpay.curAmt ?? nonpay.maxAmt ?? nonpay.minAmt ?? 0),
+        updated: formatDate(nonpay.adtFrDd),
+      })
+    }
+    console.log(`   - ${hosp.yadmNm}: 항목 ${nonpayItems.length}건 확보`)
   }
 
   if (providers.length === 0) {
@@ -149,7 +163,7 @@ async function main() {
   // 읽으면 파일 번들링 누락(FUNCTION_INVOCATION_FAILED) 위험이 있어서, import로 직접
   // 코드에 박아 넣는 방식이 안전하다.
   const outPath = path.join(ROOT, 'data', 'nonbenefit-prices.ts')
-  const fileContent = `import type { NonBenefitProvider } from '../lib/types'\n\n// scripts/fetch-hira-data.mjs가 생성한다. 직접 수정하지 말고 스크립트를 다시 실행할 것.\nexport const providers: NonBenefitProvider[] = ${JSON.stringify(providers, null, 2)}\n`
+  const fileContent = `import type { NonBenefitProvider } from '../lib/types.js'\n\n// scripts/fetch-hira-data.mjs가 생성한다. 직접 수정하지 말고 스크립트를 다시 실행할 것.\nexport const providers: NonBenefitProvider[] = ${JSON.stringify(providers, null, 2)}\n`
   fs.writeFileSync(outPath, fileContent, 'utf-8')
   console.log(`3) 완료: ${providers.length}건 저장 → ${outPath}`)
 }
