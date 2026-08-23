@@ -39,7 +39,7 @@ export default function App() {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    const params = new URLSearchParams({ district, sort })
+    const params = new URLSearchParams({ item: selected.official, district, sort })
     if (coords) {
       params.set('lat', String(coords.lat))
       params.set('lng', String(coords.lng))
@@ -59,7 +59,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [district, sort, coords])
+  }, [selected, district, sort, coords])
 
   const search = () => {
     if (!query.trim()) {
@@ -207,7 +207,7 @@ export default function App() {
           <div className="result-list">
             {loading && <p>불러오는 중...</p>}
             {!loading && results.length === 0 && (
-              <p className="notice">아직 {district} 지역의 실제 데이터가 없어요. 강남구로 검색해 보세요.</p>
+              <p className="notice">아직 "{selected.official}" · {district} 조합의 실제 데이터가 없어요. "독감주사" · 강남구로 검색해 보세요.</p>
             )}
             {results.map((provider, index) => (
               <article className={`provider-card ${provider.kind === '보건소' ? 'public' : ''}`} key={provider.ykiho}>

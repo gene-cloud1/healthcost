@@ -3,11 +3,12 @@ import { providers } from '../data/nonbenefit-prices.js'
 import { searchProviders } from '../lib/search.js'
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
+  const item = typeof req.query.item === 'string' ? req.query.item : undefined
   const district = typeof req.query.district === 'string' ? req.query.district : undefined
   const lat = req.query.lat ? Number(req.query.lat) : undefined
   const lng = req.query.lng ? Number(req.query.lng) : undefined
   const sort = req.query.sort === 'distance' ? 'distance' : 'price'
 
-  const results = searchProviders(providers, { district, lat, lng, sort })
+  const results = searchProviders(providers, { item, district, lat, lng, sort })
   res.status(200).json({ results })
 }

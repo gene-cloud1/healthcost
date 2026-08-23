@@ -4,6 +4,7 @@ export type NonBenefitProvider = {
   ykiho: string
   name: string
   kind: ProviderKind
+  item: string
   district: string
   address: string
   lat: number

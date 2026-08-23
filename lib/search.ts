@@ -2,6 +2,7 @@ import { haversineKm } from './geo.js'
 import type { NonBenefitProvider, SearchResult } from './types.js'
 
 export type SearchParams = {
+  item?: string
   district?: string
   lat?: number
   lng?: number
@@ -9,10 +10,12 @@ export type SearchParams = {
 }
 
 export function searchProviders(providers: NonBenefitProvider[], params: SearchParams): SearchResult[] {
-  const { district, lat, lng, sort = 'price' } = params
+  const { item, district, lat, lng, sort = 'price' } = params
   const hasCoords = typeof lat === 'number' && typeof lng === 'number'
 
-  const filtered = district ? providers.filter((p) => p.district === district) : providers
+  const filtered = providers.filter(
+    (p) => (!item || p.item === item) && (!district || p.district === district),
+  )
 
   const withDistance: SearchResult[] = filtered.map((p) => ({
     ...p,

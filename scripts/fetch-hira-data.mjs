@@ -128,6 +128,7 @@ async function main() {
       ykiho: hosp.ykiho,
       name: hosp.yadmNm,
       kind: mapKind(hosp.clCdNm),
+      item: nonpay.npayKorNm,
       district: TARGET_DISTRICT,
       address: hosp.addr,
       lat: Number(hosp.YPos),
