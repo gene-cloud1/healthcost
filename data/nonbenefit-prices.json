@@ -1,1 +1,98 @@
-[]
+[
+  {
+    "ykiho": "JDQ4MTg4MSM1MSMkMSMkMCMkODkkMzgxMzUxIzExIyQxIyQzIyQxMyQzNjEwMDIjODEjJDEjJDIjJDgz",
+    "name": "삼성서울병원",
+    "kind": "상급종합병원",
+    "district": "강남구",
+    "address": "서울특별시 강남구 일원로 81, (일원동, 삼성의료원)",
+    "lat": 37.4882977,
+    "lng": 127.0851508,
+    "priceMin": 53000,
+    "priceMax": 53000,
+    "updated": "2025.11.17"
+  },
+  {
+    "ykiho": "JDQ4MTg4MSM1MSMkMSMkMCMkODkkMzgxMzUxIzExIyQxIyQzIyQ2MiQzNjE0ODEjNTEjJDEjJDYjJDgz",
+    "name": "연세대학교의과대학 강남세브란스병원",
+    "kind": "상급종합병원",
+    "district": "강남구",
+    "address": "서울특별시 강남구 언주로 211, 강남세브란스병원 (도곡동)",
+    "lat": 37.4929296,
+    "lng": 127.0462683,
+    "priceMin": 42000,
+    "priceMax": 42000,
+    "updated": "2025.09.03"
+  },
+  {
+    "ykiho": "JDQ4MTg4MSM1MSMkMSMkMCMkODkkMzgxMzUxIzExIyQxIyQ3IyQ2MiQyNjE0ODEjNzEjJDEjJDgjJDgz",
+    "name": "강남베드로병원",
+    "kind": "종합병원",
+    "district": "강남구",
+    "address": "서울특별시 강남구 남부순환로 2649, 베드로병원 (도곡동)",
+    "lat": 37.4856196,
+    "lng": 127.0396045,
+    "priceMin": 35000,
+    "priceMax": 35000,
+    "updated": "2025.09.03"
+  },
+  {
+    "ykiho": "JDQ4MTg4MSM1MSMkMSMkMCMkODkkMzgxMzUxIzExIyQxIyQzIyQwMyQzNjE0ODEjNTEjJDEjJDIjJDgz",
+    "name": "차의과학대학교 강남차병원",
+    "kind": "종합병원",
+    "district": "강남구",
+    "address": "서울특별시 강남구 논현로 566, 강남차병원(역삼동650-9, 606-4, 605외2필지(지하7층~지하1층, 지상2층~7층)) (역삼동)",
+    "lat": 37.5067005,
+    "lng": 127.0345427,
+    "priceMin": 40000,
+    "priceMax": 40000,
+    "updated": "2025.09.03"
+  },
+  {
+    "ykiho": "JDQ4MTg4MSM1MSMkMSMkMCMkOTkkMzgxMzUxIzQxIyQxIyQ3IyQwMyQ0NjEwMDIjNTEjJDEjJDIjJDgz",
+    "name": "(의)가산의료재단 광동병원",
+    "kind": "병원",
+    "district": "강남구",
+    "address": "서울특별시 강남구 봉은사로 612, (삼성동)",
+    "lat": 37.5142863,
+    "lng": 127.0621662,
+    "priceMin": 30000,
+    "priceMax": 30000,
+    "updated": "2025.09.03"
+  },
+  {
+    "ykiho": "JDQ4MTg4MSM1MSMkMSMkMCMkOTkkMzgxMzUxIzQxIyQxIyQ3IyQ5OSQyNjE4MzIjNDEjJDEjJDQjJDgz",
+    "name": "강남유나이티드병원",
+    "kind": "병원",
+    "district": "강남구",
+    "address": "서울특별시 강남구 남부순환로 2609, 하늘빌딩, 7~12층 (도곡동) (도곡동)",
+    "lat": 37.4849802,
+    "lng": 127.0351301,
+    "priceMin": 35000,
+    "priceMax": 35000,
+    "updated": "2025.09.03"
+  },
+  {
+    "ykiho": "JDQ4MTg4MSM1MSMkMSMkMCMkOTkkMzgxMzUxIzMxIyQxIyQ3IyQ4OSQyNjEyMjIjODEjJDEjJDIjJDgz",
+    "name": "강남을지대학교병원",
+    "kind": "병원",
+    "district": "강남구",
+    "address": "서울특별시 강남구 도산대로 202, 강남을지병원 B2~9층 (논현동)",
+    "lat": 37.5194124,
+    "lng": 127.0286438,
+    "priceMin": 40000,
+    "priceMax": 40000,
+    "updated": "2025.09.03"
+  },
+  {
+    "ykiho": "JDQ4MTg4MSM1MSMkMSMkMCMkOTkkMzgxMzUxIzMxIyQxIyQ3IyQ2MiQyNjE4MzIjODEjJDEjJDIjJDgz",
+    "name": "강남제이에스병원",
+    "kind": "병원",
+    "district": "강남구",
+    "address": "서울특별시 강남구 도곡로 122, 제이에스빌딩 (도곡동)",
+    "lat": 37.4899185,
+    "lng": 127.033745,
+    "priceMin": 30000,
+    "priceMax": 30000,
+    "updated": "2025.09.03"
+  }
+]
