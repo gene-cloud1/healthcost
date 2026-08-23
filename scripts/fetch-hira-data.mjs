@@ -29,9 +29,14 @@ if (!API_KEY) {
 const HOSP_URL = 'https://apis.data.go.kr/B551182/hospInfoServicev2/getHospBasisList'
 const NONPAY_URL = 'https://apis.data.go.kr/B551182/nonPaymentDamtInfoService/getNonPaymentItemHospDtlList'
 // CLI 인자로 구를 넘기면 그 구들만, 안 넘기면 강남구만 (기존 동작 유지).
-// 예: node scripts/fetch-hira-data.mjs 서초구 송파구
-const TARGET_DISTRICTS = process.argv.slice(2).length > 0 ? process.argv.slice(2) : ['강남구']
-const MAX_HOSPITALS = 8
+// --all 을 같이 넘기면 구당 병원 수 캡을 없앤다 (기본은 8곳 캡).
+// 예: node scripts/fetch-hira-data.mjs --all 강남구 서초구 성남시
+const rawArgs = process.argv.slice(2)
+const FETCH_ALL = rawArgs.includes('--all')
+const TARGET_DISTRICTS = rawArgs.filter((a) => a !== '--all').length > 0
+  ? rawArgs.filter((a) => a !== '--all')
+  : ['강남구']
+const MAX_HOSPITALS = FETCH_ALL ? Infinity : 8
 const MAX_PAGES = 30
 const PAGE_SIZE = 1000
 
