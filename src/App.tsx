@@ -95,7 +95,7 @@ export default function App() {
     const cached = districtCache.current.get(key)
     const providers = cached
       ? Promise.resolve(cached)
-      : fetch(`/${filePath}`, { cache: 'force-cache' })
+      : fetch(`/search/${filePath}`, { cache: 'force-cache' })
           .then((res) => {
             if (!res.ok) throw new Error('district data request failed')
             return res.json() as Promise<NonBenefitProvider[]>
