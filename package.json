@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "vite build",
     "test": "vitest run",
-    "fetch:data": "node scripts/fetch-hira-data.mjs"
+    "fetch:data": "node scripts/fetch-hira-data.mjs",
+    "build:search-data": "node scripts/build-search-data.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

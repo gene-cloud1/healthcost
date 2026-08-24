@@ -1,9 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import './index.css'
-import type { SearchResult } from '../lib/types'
+import { searchProviders } from '../lib/search'
+import type { NonBenefitProvider, SearchResult } from '../lib/types'
 import { regionMap } from '../data/regions'
 
 type Sort = 'price' | 'distance'
+
+type SearchCatalog = {
+  items: string[]
+  districtFiles: Record<string, string>
+}
 
 const SIDO_NAMES = Object.keys(regionMap)
 
@@ -38,6 +44,7 @@ const formatPrice = (price: number) => (price === 0 ? '무료' : `${price.toLoca
 export default function App() {
   const [query, setQuery] = useState('독감주사')
   const [itemOptions, setItemOptions] = useState<string[]>([])
+  const [catalog, setCatalog] = useState<SearchCatalog | null>(null)
   const [selectedItem, setSelectedItem] = useState<string | null>(null)
   const [candidates, setCandidates] = useState<string[]>([])
   const [city, setCity] = useState('서울특별시')
@@ -49,13 +56,17 @@ export default function App() {
   const [notice, setNotice] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
+  const districtCache = useRef(new Map<string, NonBenefitProvider[]>())
 
   const queryMatches = useMemo(() => matchItems(query, itemOptions), [query, itemOptions])
 
   useEffect(() => {
-    fetch('/api/items')
+    fetch('/search/catalog.json', { cache: 'force-cache' })
       .then((res) => res.json())
-      .then((data) => setItemOptions(data.items ?? []))
+      .then((data: SearchCatalog) => {
+        setCatalog(data)
+        setItemOptions(data.items ?? [])
+      })
       .catch(() => setNotice('검색 가능한 항목 목록을 불러오지 못했어요.'))
   }, [])
 
@@ -66,19 +77,38 @@ export default function App() {
   }, [itemOptions, query, selectedItem])
 
   useEffect(() => {
-    if (!selectedItem) return
+    if (!selectedItem || !catalog) return
     let cancelled = false
     setLoading(true)
-    const params = new URLSearchParams({ item: selectedItem, district, sort })
-    if (coords) {
-      params.set('lat', String(coords.lat))
-      params.set('lng', String(coords.lng))
+    const key = `${city}|${district}`
+    const filePath = catalog.districtFiles[key]
+
+    if (!filePath) {
+      setResults([])
+      setLoading(false)
+      setNotice(`${city} ${district}의 가격 데이터를 찾지 못했어요.`)
+      return () => {
+        cancelled = true
+      }
     }
-    fetch(`/api/search?${params.toString()}`)
-      .then((res) => res.json())
+
+    const cached = districtCache.current.get(key)
+    const providers = cached
+      ? Promise.resolve(cached)
+      : fetch(`/${filePath}`, { cache: 'force-cache' })
+          .then((res) => {
+            if (!res.ok) throw new Error('district data request failed')
+            return res.json() as Promise<NonBenefitProvider[]>
+          })
+          .then((data) => {
+            districtCache.current.set(key, data)
+            return data
+          })
+
+    providers
       .then((data) => {
         if (cancelled) return
-        setResults(data.results ?? [])
+        setResults(searchProviders(data, { item: selectedItem, sort, lat: coords?.lat, lng: coords?.lng }))
       })
       .catch(() => {
         if (!cancelled) setNotice('결과를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.')
@@ -89,7 +119,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [selectedItem, district, sort, coords])
+  }, [catalog, selectedItem, city, district, sort, coords])
 
   const search = () => {
     if (!query.trim()) {
