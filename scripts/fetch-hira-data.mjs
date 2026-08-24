@@ -40,8 +40,8 @@ const MAX_HOSPITALS = FETCH_ALL ? Infinity : 8
 const MAX_PAGES = 30
 const PAGE_SIZE = 1000
 
-const debugDir = path.join(ROOT, 'data')
-fs.mkdirSync(debugDir, { recursive: true })
+const dataDir = path.join(ROOT, 'data')
+fs.mkdirSync(dataDir, { recursive: true })
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -88,19 +88,25 @@ async function callApi(baseUrl, extraParams, retriesLeft = 5) {
 
 async function findHospitalsInDistrict(district) {
   const found = []
+  const seenYkiho = new Set()
   for (let page = 1; page <= MAX_PAGES && found.length < MAX_HOSPITALS; page += 1) {
     const items = await callApi(HOSP_URL, { numOfRows: PAGE_SIZE, pageNo: page })
     if (page === 1) {
-      fs.writeFileSync(path.join(debugDir, '_debug-hosp-page1.json'), JSON.stringify(items.slice(0, 2), null, 2))
+      fs.writeFileSync(path.join(dataDir, '_debug-hosp-page1.json'), JSON.stringify(items.slice(0, 2), null, 2))
     }
     if (items.length === 0) break
     for (const item of items) {
       if (typeof item.addr === 'string' && item.addr.includes(district)) {
+        // 페이지네이션이 정렬 기준 없이 도는 API라 페이지 사이에 같은 병원이 다시 나올 수
+        // 있다 (실제로 관측됨: 페이지가 늘어날수록 매칭 수가 기대보다 계속 늘어남).
+        // ykiho 기준으로 중복만 걸러내고, 새 병원이면 계속 담는다.
+        if (seenYkiho.has(item.ykiho)) continue
+        seenYkiho.add(item.ykiho)
         found.push(item)
         if (found.length >= MAX_HOSPITALS) break
       }
     }
-    console.log(`  ${page}페이지 확인, 누적 ${district} 매칭 ${found.length}건`)
+    console.log(`  ${page}페이지 확인, 누적 ${district} 매칭 ${found.length}건 (중복 제외)`)
   }
   return found
 }
@@ -108,7 +114,7 @@ async function findHospitalsInDistrict(district) {
 async function findNonPaymentItems(ykiho, isFirst) {
   const items = await callApi(NONPAY_URL, { ykiho, numOfRows: 100, pageNo: 1 })
   if (isFirst) {
-    fs.writeFileSync(path.join(debugDir, '_debug-nonpay-sample.json'), JSON.stringify(items, null, 2))
+    fs.writeFileSync(path.join(dataDir, '_debug-nonpay-sample.json'), JSON.stringify(items, null, 2))
   }
   return items.filter((item) => typeof item.npayKorNm === 'string' && item.npayKorNm.trim())
 }
@@ -131,7 +137,7 @@ function mapKind(clCdNm) {
 // `export const providers: NonBenefitProvider[] = [ ... ]` 형태라
 // '=' 뒤부터 끝까지가 유효한 JSON 배열이라는 점을 이용한다.
 function loadExistingProviders() {
-  const outPath = path.join(ROOT, 'data', 'nonbenefit-prices.ts')
+  const outPath = path.join(dataDir, 'nonbenefit-prices.ts')
   if (!fs.existsSync(outPath)) return []
   const content = fs.readFileSync(outPath, 'utf-8')
   const eq = content.indexOf('providers: NonBenefitProvider[] = ')
@@ -145,57 +151,101 @@ function loadExistingProviders() {
   }
 }
 
-async function fetchDistrict(district) {
+function saveProviders(providers) {
+  const outPath = path.join(dataDir, 'nonbenefit-prices.ts')
+  const fileContent = `import type { NonBenefitProvider } from '../lib/types.js'\n\n// scripts/fetch-hira-data.mjs가 생성한다. 직접 수정하지 말고 스크립트를 다시 실행할 것.\nexport const providers: NonBenefitProvider[] = ${JSON.stringify(providers, null, 2)}\n`
+  fs.writeFileSync(outPath, fileContent, 'utf-8')
+}
+
+// 병원 단위 진행상황을 별도 파일에 기록해서, 중간에 프로세스가 죽어도 재실행 시
+// 이미 "확실한 응답"(성공 또는 진짜 0건)을 받은 병원은 건너뛴다. 재시도를 다 쓰고
+// 실패한 병원은 여기 안 남겨서, 재실행하면 다시 시도하게 된다.
+function progressPath(district) {
+  return path.join(dataDir, `_progress-${district}.json`)
+}
+function loadProgress(district) {
+  const p = progressPath(district)
+  if (!fs.existsSync(p)) return new Set()
+  try {
+    return new Set(JSON.parse(fs.readFileSync(p, 'utf-8')))
+  } catch {
+    return new Set()
+  }
+}
+function saveProgress(district, doneSet) {
+  fs.writeFileSync(progressPath(district), JSON.stringify([...doneSet]), 'utf-8')
+}
+function clearProgress(district) {
+  const p = progressPath(district)
+  if (fs.existsSync(p)) fs.unlinkSync(p)
+}
+
+// district의 새 데이터를 병원 하나 끝날 때마다 즉시 all/파일에 반영한다.
+// all은 "이 district가 아닌 것들" + "이 district에서 지금까지 확보한 것들"로 계속 갱신된다.
+async function fetchDistrict(district, all) {
   console.log(`\n[${district}] 소재 병원 목록 조회 중...`)
   const hospitals = await findHospitalsInDistrict(district)
   console.log(`   ${hospitals.length}개 병원 확보`)
   if (hospitals.length === 0) {
-    console.log(`   [${district}] 병원을 하나도 못 찾았어요, 건너뜀`)
-    return []
+    console.log(`   [${district}] 병원을 하나도 못 찾았어요 — API 오류일 수 있어서 기존 데이터는 그대로 둔다`)
+    return all
   }
 
-  console.log(`[${district}] 병원별 신고 비급여 항목 전체 조회 중...`)
-  const providers = []
+  const done = loadProgress(district)
+  const alreadyDistrictData = all.filter((p) => p.district === district)
+  console.log(`   이전 진행 상황: ${done.size}개 병원 처리 완료 (재실행이면 이어서 진행)`)
+
+  const remaining = hospitals.filter((h) => !done.has(h.ykiho))
+  console.log(`[${district}] 병원별 신고 비급여 항목 조회 중... (${remaining.length}/${hospitals.length}곳 남음)`)
+
+  let districtProviders = alreadyDistrictData
   let first = true
-  for (const hosp of hospitals) {
+  for (const hosp of remaining) {
     if (!first) await sleep(1000)
     let nonpayItems
     try {
       nonpayItems = await findNonPaymentItems(hosp.ykiho, first)
     } catch (err) {
-      console.log(`   - ${hosp.yadmNm}: 반복된 오류로 건너뜀 (${err.message.slice(0, 80)})`)
+      console.log(`   - ${hosp.yadmNm}: 반복된 오류로 건너뜀, 다음 실행 때 재시도 (${err.message.slice(0, 80)})`)
       first = false
       continue
     }
     first = false
+    // 여기까지 왔으면 서버로부터 확실한 응답(성공 또는 진짜 0건)을 받은 것이다.
+    done.add(hosp.ykiho)
+    saveProgress(district, done)
+
     if (nonpayItems.length === 0) {
-      console.log(`   - ${hosp.yadmNm}: 신고된 비급여 항목 없음, 건너뜀`)
+      console.log(`   - ${hosp.yadmNm}: 신고된 비급여 항목 없음`)
       continue
     }
-    for (const nonpay of nonpayItems) {
-      providers.push({
-        ykiho: hosp.ykiho,
-        name: hosp.yadmNm,
-        kind: mapKind(hosp.clCdNm),
-        item: nonpay.npayKorNm,
-        district,
-        address: hosp.addr,
-        lat: Number(hosp.YPos),
-        lng: Number(hosp.XPos),
-        priceMin: Number(nonpay.curAmt ?? nonpay.minAmt ?? 0),
-        priceMax: Number(nonpay.curAmt ?? nonpay.maxAmt ?? nonpay.minAmt ?? 0),
-        updated: formatDate(nonpay.adtFrDd),
-      })
-    }
-    console.log(`   - ${hosp.yadmNm}: 항목 ${nonpayItems.length}건 확보`)
+    const newRecords = nonpayItems.map((nonpay) => ({
+      ykiho: hosp.ykiho,
+      name: hosp.yadmNm,
+      kind: mapKind(hosp.clCdNm),
+      item: nonpay.npayKorNm,
+      district,
+      address: hosp.addr,
+      lat: Number(hosp.YPos),
+      lng: Number(hosp.XPos),
+      priceMin: Number(nonpay.curAmt ?? nonpay.minAmt ?? 0),
+      priceMax: Number(nonpay.curAmt ?? nonpay.maxAmt ?? nonpay.minAmt ?? 0),
+      updated: formatDate(nonpay.adtFrDd),
+    }))
+    districtProviders = [...districtProviders.filter((p) => p.ykiho !== hosp.ykiho), ...newRecords]
+    all = [...all.filter((p) => p.district !== district), ...districtProviders]
+    saveProviders(all)
+    console.log(`   - ${hosp.yadmNm}: 항목 ${nonpayItems.length}건 확보, 저장 완료 (누적 ${all.length}건)`)
   }
-  return providers
-}
 
-function saveProviders(providers) {
-  const outPath = path.join(ROOT, 'data', 'nonbenefit-prices.ts')
-  const fileContent = `import type { NonBenefitProvider } from '../lib/types.js'\n\n// scripts/fetch-hira-data.mjs가 생성한다. 직접 수정하지 말고 스크립트를 다시 실행할 것.\nexport const providers: NonBenefitProvider[] = ${JSON.stringify(providers, null, 2)}\n`
-  fs.writeFileSync(outPath, fileContent, 'utf-8')
+  if (done.size >= hospitals.length) {
+    console.log(`   [${district}] 전체 ${hospitals.length}곳 처리 완료`)
+    clearProgress(district)
+  } else {
+    console.log(`   [${district}] ${hospitals.length - done.size}곳 아직 미완료 (재시도 소진분) — 스크립트를 다시 실행하면 이어서 진행됨`)
+  }
+
+  return all
 }
 
 async function main() {
@@ -204,24 +254,11 @@ async function main() {
   console.log(`기존 데이터 ${all.length}건에서 시작`)
 
   for (const district of TARGET_DISTRICTS) {
-    let result
     try {
-      result = await fetchDistrict(district)
+      all = await fetchDistrict(district, all)
     } catch (err) {
-      console.log(`\n[${district}] 반복된 오류로 이번 구는 건너뜀, 기존 데이터 유지 (${err.message.slice(0, 120)})`)
-      continue
+      console.log(`\n[${district}] 반복된 오류로 이번 구는 중단, 지금까지 확보한 데이터는 이미 저장됨 (${err.message.slice(0, 120)})`)
     }
-    if (result.length === 0) {
-      // 병원을 하나도 못 찾은 건 API 오류(리소스풀 고갈 등)일 가능성이 높다.
-      // 진짜로 0건이어도, 있던 데이터를 빈 걸로 덮어쓰는 것보다 기존 걸 보존하는 쪽이 안전하다.
-      console.log(`   [${district}] 새로 받은 데이터가 0건이라 기존 데이터를 그대로 둔다 (덮어쓰지 않음)`)
-      continue
-    }
-    // 이 구는 새 데이터를 확보했으니, 기존 것 중 이 구 것만 새 걸로 교체하고 즉시 저장한다
-    // (한 구 끝날 때마다 파일에 반영해서, 중간에 죽어도 여기까지는 안전하게 남는다).
-    all = [...all.filter((p) => p.district !== district), ...result]
-    saveProviders(all)
-    console.log(`   [${district}] ${result.length}건으로 갱신, 저장 완료 (누적 ${all.length}건)`)
   }
 
   if (all.length === 0) {
