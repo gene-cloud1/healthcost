@@ -6,12 +6,14 @@ export type NonBenefitProvider = {
   kind: ProviderKind
   item: string
   district: string
+  neighborhood?: string
   address: string
   lat: number
   lng: number
   priceMin: number
   priceMax: number
   updated: string
+  hospUrl?: string
 }
 
 export type SearchResult = NonBenefitProvider & {

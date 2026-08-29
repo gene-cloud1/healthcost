@@ -56,6 +56,7 @@ export default function App() {
   const [notice, setNotice] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
+  const [expandedKey, setExpandedKey] = useState<string | null>(null)
   const districtCache = useRef(new Map<string, NonBenefitProvider[]>())
 
   const queryMatches = useMemo(() => matchItems(query, itemOptions), [query, itemOptions])
@@ -116,10 +117,15 @@ export default function App() {
       .finally(() => {
         if (!cancelled) setLoading(false)
       })
+
     return () => {
       cancelled = true
     }
   }, [catalog, selectedItem, city, district, sort, coords])
+
+  useEffect(() => {
+    setExpandedKey(null)
+  }, [selectedItem, city, district, sort, coords])
 
   const search = () => {
     if (!query.trim()) {
@@ -193,6 +199,10 @@ export default function App() {
     results.length > 1
       ? Math.max(...results.map((r) => r.priceMin)) - Math.min(...results.map((r) => r.priceMin))
       : null
+
+  const toggleExpanded = (key: string) => {
+    setExpandedKey((current) => (current === key ? null : key))
+  }
 
   return (
     <div className="app-shell">
@@ -315,28 +325,73 @@ export default function App() {
             {!loading && selectedItem && results.length === 0 && (
               <p className="notice">아직 "{selectedItem}" · {district} 조합의 실제 데이터가 없어요. "독감주사" · 강남구로 검색해 보세요.</p>
             )}
-            {results.map((provider, index) => (
-              <article className={`provider-card ${provider.kind === '보건소' ? 'public' : ''}`} key={`${provider.ykiho}-${provider.item}`}>
-                <div className="rank">{index + 1}</div>
-                <div className="provider-main">
-                  <div className="provider-title">
-                    <span className={`kind ${provider.kind}`}>{provider.kind}</span>
-                    <h3>{provider.name}</h3>
+            {results.map((provider, index) => {
+              const cardKey = `${provider.ykiho}-${provider.item}`
+              const isExpanded = expandedKey === cardKey
+              const locationLabel = [provider.district, provider.neighborhood].filter(Boolean).join(' ')
+              const kakaoMapUrl = `https://map.kakao.com/link/search/${encodeURIComponent(provider.address)}`
+              const naverMapUrl = `https://map.naver.com/v5/search/${encodeURIComponent(provider.address)}`
+
+              return (
+                <article
+                  className={`provider-card ${provider.kind === '보건소' ? 'public' : ''} ${isExpanded ? 'expanded' : ''}`}
+                  key={cardKey}
+                >
+                  <div className="provider-card-top">
+                    <div className="rank">{index + 1}</div>
+                    <div className="provider-main">
+                      <div className="provider-title">
+                        <span className={`kind ${provider.kind}`}>{provider.kind}</span>
+                        <h3>{provider.name}</h3>
+                      </div>
+                      <p>
+                        <span>{locationLabel}</span>
+                        {provider.distanceKm !== null && <span>현재 위치에서 약 {provider.distanceKm.toFixed(1)}km</span>}
+                      </p>
+                    </div>
+                    <div className="price-box">
+                      <strong className={provider.priceMin === 0 ? 'free' : ''}>{formatPrice(provider.priceMin)}</strong>
+                      {provider.priceMax !== provider.priceMin && (
+                        <small>{provider.priceMin.toLocaleString()} ~ {provider.priceMax.toLocaleString()}원</small>
+                      )}
+                      <small>정보 갱신 {provider.updated}</small>
+                    </div>
                   </div>
-                  <p>
-                    {provider.district}
-                    {provider.distanceKm !== null && ` · 현재 위치에서 약 ${provider.distanceKm.toFixed(1)}km`}
-                  </p>
-                </div>
-                <div className="price-box">
-                  <strong className={provider.priceMin === 0 ? 'free' : ''}>{formatPrice(provider.priceMin)}</strong>
-                  {provider.priceMax !== provider.priceMin && (
-                    <small>{provider.priceMin.toLocaleString()} ~ {provider.priceMax.toLocaleString()}원</small>
+                  <button
+                    type="button"
+                    className="detail-button"
+                    aria-expanded={isExpanded}
+                    onClick={() => toggleExpanded(cardKey)}
+                  >
+                    {isExpanded ? '상세보기 숨기기 ▴' : '상세보기 ▾'}
+                  </button>
+                  {isExpanded && (
+                    <div className="provider-detail">
+                      <div className="provider-detail-address">
+                        <span>주소</span>
+                        <p>{provider.address}</p>
+                      </div>
+                      <div className="provider-detail-links">
+                        <a href={kakaoMapUrl} target="_blank" rel="noreferrer">
+                          <span className="desktop-label">카카오맵에서 보기 ↗</span>
+                          <span className="mobile-label">카카오맵 ↗</span>
+                        </a>
+                        <a href={naverMapUrl} target="_blank" rel="noreferrer">
+                          <span className="desktop-label">네이버맵에서 보기 ↗</span>
+                          <span className="mobile-label">네이버맵 ↗</span>
+                        </a>
+                        {provider.hospUrl && (
+                          <a href={provider.hospUrl} target="_blank" rel="noreferrer">
+                            <span className="desktop-label">홈페이지 방문 ↗</span>
+                            <span className="mobile-label">홈페이지 ↗</span>
+                          </a>
+                        )}
+                      </div>
+                    </div>
                   )}
-                  <small>정보 갱신 {provider.updated}</small>
-                </div>
-              </article>
-            ))}
+                </article>
+              )
+            })}
           </div>
           <p className="data-note">가격 정보는 건강보험심사평가원이 공개한 비급여 진료비 자료를 바탕으로 합니다. 실제 진료비는 진료 내용에 따라 달라질 수 있어요.</p>
         </section>
