@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<style>
+body{margin:0;background:#f0eee9;font-family:system-ui,sans-serif}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55)}
+.dv-card{max-width:100%;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);overflow:hidden}
+.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
+.dv-next{margin:22px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t1">
+  <div class="dv-thd">
+    <a class="dv-tid" href="#t1">1</a>
+    <span class="dv-tname">병원 카드 인라인 상세보기 토글 — 3가지 상태 (실제 토큰 적용)</span>
+  </div>
+  <div class="dv-opts">
+
+    <div class="dv-opt" id="1a">
+      <div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Collapsed · 데스크톱</div>
+      <div class="dv-card" style="width:680px;padding:44px 40px;background:#f4f1ff">
+        <div style="width:600px;background:#f9f7ff;border-radius:26px;box-shadow:10px 12px 24px rgba(118,105,164,.18),-8px -8px 20px rgba(255,255,255,.9);font-family:Inter,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;color:#413c5c">
+          <div style="display:grid;grid-template-columns:36px minmax(0,1fr) auto;column-gap:12px;row-gap:6px;padding:20px 22px 16px">
+            <div style="grid-column:1;grid-row:1/3;width:36px;height:36px;border-radius:50%;background:#e5ddff;color:#7b68d8;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;box-shadow:inset 5px 5px 10px rgba(178,165,214,.18),inset -5px -5px 10px rgba(255,255,255,.9)">1</div>
+            <div style="grid-column:2;grid-row:1;display:flex;align-items:center;gap:8px;min-width:0">
+              <span style="background:#f1e8ff;color:#8058a8;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap">병원</span>
+              <span style="font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">강남예삼병원</span>
+            </div>
+            <div style="grid-column:2;grid-row:2;font-size:12.5px;color:#817b9b">강남구 역삼동 · 1.2km</div>
+            <div style="grid-column:3;grid-row:1;justify-self:end;background:#fff;border:1px solid #e2dcf3;border-radius:15px;padding:8px 12px;font-weight:800;color:#7b68d8;font-size:14px;white-space:nowrap">38,000원</div>
+            <div style="grid-column:3;grid-row:2;justify-self:end;font-size:11px;color:#817b9b;white-space:nowrap">갱신 2026.08.26</div>
+          </div>
+          <div style="border-top:1px solid #e2dcf3;padding:14px 22px 18px;display:flex;justify-content:flex-end">
+            <button style="background:#eeeaff;border:0;color:#7b68d8;border-radius:15px;padding:10px 14px;font-size:12px;font-weight:900;box-shadow:inset 5px 5px 10px rgba(178,165,214,.18),inset -5px -5px 10px rgba(255,255,255,.9);display:inline-flex;align-items:center;gap:4px;font-family:inherit;cursor:pointer">상세보기 ▾</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dv-opt" id="1b">
+      <div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Expanded · 홈페이지 있음 · 데스크톱</div>
+      <div class="dv-card" style="width:680px;padding:44px 40px;background:#f4f1ff">
+        <div style="width:600px;background:#f9f7ff;border-radius:26px;box-shadow:10px 12px 24px rgba(118,105,164,.18),-8px -8px 20px rgba(255,255,255,.9);font-family:Inter,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;color:#413c5c">
+          <div style="display:grid;grid-template-columns:36px minmax(0,1fr) auto;column-gap:12px;row-gap:6px;padding:20px 22px 16px">
+            <div style="grid-column:1;grid-row:1/3;width:36px;height:36px;border-radius:50%;background:#e5ddff;color:#7b68d8;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;box-shadow:inset 5px 5px 10px rgba(178,165,214,.18),inset -5px -5px 10px rgba(255,255,255,.9)">1</div>
+            <div style="grid-column:2;grid-row:1;display:flex;align-items:center;gap:8px;min-width:0">
+              <span style="background:#f1e8ff;color:#8058a8;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap">병원</span>
+              <span style="font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">삼성서울병원</span>
+            </div>
+            <div style="grid-column:2;grid-row:2;font-size:12.5px;color:#817b9b">강남구 일원동 · 2.4km</div>
+            <div style="grid-column:3;grid-row:1;justify-self:end;background:#fff;border:1px solid #e2dcf3;border-radius:15px;padding:8px 12px;font-weight:800;color:#7b68d8;font-size:14px;white-space:nowrap">42,000원</div>
+            <div style="grid-column:3;grid-row:2;justify-self:end;font-size:11px;color:#817b9b;white-space:nowrap">갱신 2026.08.28</div>
+          </div>
+          <div style="border-top:1px solid #e2dcf3;padding:14px 22px 16px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <span style="font-size:10.5px;font-weight:700;color:#817b9b;letter-spacing:.02em">주소</span>
+              <span style="font-size:13px;color:#413c5c">서울특별시 강남구 일원로 81</span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              <a href="#" style="background:#e5ddff;color:#7b68d8;border:1px solid #e2dcf3;border-radius:15px;padding:7px 12px;font-size:12px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:4px">카카오맵에서 보기 ↗</a>
+              <a href="#" style="background:#e5ddff;color:#7b68d8;border:1px solid #e2dcf3;border-radius:15px;padding:7px 12px;font-size:12px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:4px">네이버맵에서 보기 ↗</a>
+              <a href="#" style="background:#e5ddff;color:#7b68d8;border:1px solid #e2dcf3;border-radius:15px;padding:7px 12px;font-size:12px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:4px">홈페이지 방문 ↗</a>
+            </div>
+          </div>
+          <div style="padding:2px 22px 18px;display:flex;justify-content:flex-end">
+            <button style="background:#eeeaff;border:0;color:#7b68d8;border-radius:15px;padding:10px 14px;font-size:12px;font-weight:900;box-shadow:inset 5px 5px 10px rgba(178,165,214,.18),inset -5px -5px 10px rgba(255,255,255,.9);display:inline-flex;align-items:center;gap:4px;font-family:inherit;cursor:pointer">상세보기 숨기기 ▴</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dv-opt" id="1c">
+      <div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Expanded · 홈페이지 없음 · 데스크톱</div>
+      <div class="dv-card" style="width:680px;padding:44px 40px;background:#f4f1ff">
+        <div style="width:600px;background:#f9f7ff;border-radius:26px;box-shadow:10px 12px 24px rgba(118,105,164,.18),-8px -8px 20px rgba(255,255,255,.9);font-family:Inter,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;color:#413c5c">
+          <div style="display:grid;grid-template-columns:36px minmax(0,1fr) auto;column-gap:12px;row-gap:6px;padding:20px 22px 16px">
+            <div style="grid-column:1;grid-row:1/3;width:36px;height:36px;border-radius:50%;background:#e5ddff;color:#7b68d8;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;box-shadow:inset 5px 5px 10px rgba(178,165,214,.18),inset -5px -5px 10px rgba(255,255,255,.9)">2</div>
+            <div style="grid-column:2;grid-row:1;display:flex;align-items:center;gap:8px;min-width:0">
+              <span style="background:#e9e7f4;color:#625b7b;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap">의원</span>
+              <span style="font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">다솜내과의원</span>
+            </div>
+            <div style="grid-column:2;grid-row:2;font-size:12.5px;color:#817b9b">마포구 성산동 · 0.8km</div>
+            <div style="grid-column:3;grid-row:1;justify-self:end;background:#fff;border:1px solid #e2dcf3;border-radius:15px;padding:8px 12px;font-weight:800;color:#7b68d8;font-size:14px;white-space:nowrap">31,000원</div>
+            <div style="grid-column:3;grid-row:2;justify-self:end;font-size:11px;color:#817b9b;white-space:nowrap">갱신 2026.08.24</div>
+          </div>
+          <div style="border-top:1px solid #e2dcf3;padding:14px 22px 16px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <span style="font-size:10.5px;font-weight:700;color:#817b9b;letter-spacing:.02em">주소</span>
+              <span style="font-size:13px;color:#413c5c">서울특별시 마포구 월드컵로 120</span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              <a href="#" style="background:#e5ddff;color:#7b68d8;border:1px solid #e2dcf3;border-radius:15px;padding:7px 12px;font-size:12px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:4px">카카오맵에서 보기 ↗</a>
+              <a href="#" style="background:#e5ddff;color:#7b68d8;border:1px solid #e2dcf3;border-radius:15px;padding:7px 12px;font-size:12px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:4px">네이버맵에서 보기 ↗</a>
+            </div>
+          </div>
+          <div style="padding:2px 22px 18px;display:flex;justify-content:flex-end">
+            <button style="background:#eeeaff;border:0;color:#7b68d8;border-radius:15px;padding:10px 14px;font-size:12px;font-weight:900;box-shadow:inset 5px 5px 10px rgba(178,165,214,.18),inset -5px -5px 10px rgba(255,255,255,.9);display:inline-flex;align-items:center;gap:4px;font-family:inherit;cursor:pointer">상세보기 숨기기 ▴</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dv-opt" id="1d">
+      <div class="dv-olabel"><a class="dv-oid" href="#1d">1d</a>Expanded · 홈페이지 있음 · 모바일(≤640px, 2행)</div>
+      <div class="dv-card" style="width:420px;padding:44px 32px;background:#f4f1ff">
+        <div style="width:340px;background:#f9f7ff;border-radius:26px;box-shadow:10px 12px 24px rgba(118,105,164,.18),-8px -8px 20px rgba(255,255,255,.9);font-family:Inter,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;color:#413c5c;padding:18px 18px 14px">
+          <div style="display:flex;align-items:flex-start;gap:10px">
+            <div style="width:32px;height:32px;flex:none;border-radius:50%;background:#e5ddff;color:#7b68d8;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;box-shadow:inset 5px 5px 10px rgba(178,165,214,.18),inset -5px -5px 10px rgba(255,255,255,.9)">1</div>
+            <div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1">
+              <span style="background:#f1e8ff;color:#8058a8;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;white-space:nowrap">병원</span>
+              <span style="font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">삼성서울병원</span>
+            </div>
+            <div style="background:#fff;border:1px solid #e2dcf3;border-radius:13px;padding:6px 10px;font-weight:800;color:#7b68d8;font-size:13px;white-space:nowrap;flex:none">42,000원</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+            <div style="width:32px;flex:none"></div>
+            <div style="font-size:11.5px;color:#817b9b;flex:1">강남구 일원동 · 2.4km</div>
+            <div style="font-size:10.5px;color:#817b9b;white-space:nowrap;flex:none">갱신 2026.08.28</div>
+          </div>
+          <div style="margin-left:42px;margin-top:12px;padding-top:12px;border-top:1px solid #e2dcf3;display:flex;flex-direction:column;gap:9px">
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <span style="font-size:10px;font-weight:700;color:#817b9b;letter-spacing:.02em">주소</span>
+              <span style="font-size:12.5px;color:#413c5c">서울특별시 강남구 일원로 81</span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <a href="#" style="background:#e5ddff;color:#7b68d8;border:1px solid #e2dcf3;border-radius:13px;padding:6px 10px;font-size:11px;font-weight:700;text-decoration:none">카카오맵 ↗</a>
+              <a href="#" style="background:#e5ddff;color:#7b68d8;border:1px solid #e2dcf3;border-radius:13px;padding:6px 10px;font-size:11px;font-weight:700;text-decoration:none">네이버맵 ↗</a>
+              <a href="#" style="background:#e5ddff;color:#7b68d8;border:1px solid #e2dcf3;border-radius:13px;padding:6px 10px;font-size:11px;font-weight:700;text-decoration:none">홈페이지 ↗</a>
+            </div>
+          </div>
+          <button style="margin-left:42px;margin-top:8px;width:calc(100% - 42px);background:#eeeaff;border:0;color:#7b68d8;border-radius:15px;padding:10px 0;font-size:12px;font-weight:900;box-shadow:inset 5px 5px 10px rgba(178,165,214,.18),inset -5px -5px 10px rgba(255,255,255,.9);font-family:inherit;cursor:pointer">상세보기 숨기기 ▴</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <p class="dv-next">다음으로: "<a class="dv-oid" href="#1c">1c</a>처럼 홈페이지 없을 때 카카오맵 링크를 풀폭으로" · "<a class="dv-oid" href="#1a">1a</a> 버튼을 카드 왼쪽 정렬로" · "인터랙티브 프로토타입으로 만들어줘"</p>
+</section>
+
+</x-dc>
+</body>
+</html>
